@@ -1,0 +1,1 @@
+export { BaseEntityWithIdAndDates } from './baseEntityWithIdAndDates';
