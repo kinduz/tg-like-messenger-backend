@@ -3,7 +3,7 @@ import { FindOneOptions, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { ERRORS_MSG, hashValue } from 'src/shared';
 import { InjectRepository } from '@nestjs/typeorm';
-import { SignUpDto } from 'src/auth/dto/sign-up.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -11,13 +11,17 @@ export class UsersService {
     @InjectRepository(User) private userRepository: Repository<User>,
   ) {}
 
-  async create(createUserDto: SignUpDto) {
+  async create(createUserDto: CreateUserDto) {
     try {
-      return await this.userRepository.save({
+      const createdUser = await this.userRepository.save({
         ...createUserDto,
         password: await hashValue(createUserDto.password),
       });
-    } catch (err) {
+      
+      return createdUser;
+      
+    } catch (err) { 
+       
       if ('code' in err) {
         if (err.code === '23505')
           throw new ConflictException(ERRORS_MSG.USER_EXIST_ERR_MSG);
