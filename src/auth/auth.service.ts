@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/jwt.entity';
 import { Repository } from 'typeorm';
+import { OtpCode } from './entities/otp.entity';
 
 @Injectable()
 export class AuthService {
@@ -16,7 +17,33 @@ export class AuthService {
     private configService: ConfigService,
     @InjectRepository(RefreshToken)
     private refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(OtpCode)
+    private otpCodeRepository: Repository<OtpCode>,
   ) {}
+
+  async startLoginByPhoneNumber(phoneNumber: string) {
+    const user = await this.usersService.findOne({where: {phoneNumber}});
+
+    const otpCodeForFoundedUser = await this.otpCodeRepository.findOne({where: {user: {id: user.id}}});
+    
+    if (otpCodeForFoundedUser) {
+      await this.otpCodeRepository.remove(otpCodeForFoundedUser)
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const otpCode = this.otpCodeRepository.create({
+      user: user,
+      otp: otp,
+    });
+
+    const savedOtpCode = await this.otpCodeRepository.save(otpCode);
+    
+    user.otp = savedOtpCode;
+    await this.usersService.save(user); 
+
+    return savedOtpCode;
+  }
 
   async auth(user: SignInDto) {
     const payload = { id: user.id, username: user.username };
@@ -36,6 +63,7 @@ export class AuthService {
       user: await this.usersService.findOne({where: {id: user.id}}),
       expiresAt: this.getRefreshTokenExpiration(),
     });
+
     await this.refreshTokenRepository.save(newRefreshToken);
     
     return { access_token, refresh_token };

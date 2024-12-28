@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { FindOneOptions, Repository } from 'typeorm';
+import { FindOneOptions, Repository, SaveOptions } from 'typeorm';
 import { User } from './entities/user.entity';
 import { ERRORS_MSG, hashValue } from 'src/shared';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -36,6 +36,11 @@ export class UsersService {
       throw new NotFoundException(ERRORS_MSG.USER_NOT_FOUND);
     }
 
+    return user;
+  }
+
+  async save(userForSave: User,  userOptions?: SaveOptions) {
+    const user = await this.userRepository.save(userForSave, userOptions);
     return user;
   }
 }

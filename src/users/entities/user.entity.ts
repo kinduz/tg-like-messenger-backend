@@ -1,13 +1,14 @@
 import { IsEmail, IsOptional, IsPhoneNumber, IsStrongPassword, IsUrl, Length, Min } from "class-validator";
 import { ALLOWED_URL_PROTOCOLS, BaseEntityWithIdAndDates } from "src/shared";
-import { Column, Entity, OneToMany } from "typeorm";
+import { Column, Entity, JoinColumn, OneToMany, OneToOne } from "typeorm";
 import { MAX_USER_USERNAME_LENGTH, MIN_USER_PASSWORD_LENGTH, MIN_USER_USERNAME_LENGTH } from "./constants/user-entity.constants";
 import { RefreshToken } from "src/auth/entities/jwt.entity";
+import { OtpCode } from "src/auth/entities/otp.entity";
 
 @Entity()
 export class User extends BaseEntityWithIdAndDates {
     @IsOptional()
-    @IsPhoneNumber("RU")
+    @IsPhoneNumber()
     @Column({unique: true, nullable: true}) 
     phoneNumber: string;
 
@@ -34,4 +35,7 @@ export class User extends BaseEntityWithIdAndDates {
 
     @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
     refreshTokens: RefreshToken[];
+
+    @OneToOne(() => OtpCode, (otp) => otp.user)
+    otp: OtpCode;
 }
