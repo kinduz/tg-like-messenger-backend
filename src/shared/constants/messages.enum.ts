@@ -8,3 +8,7 @@ export enum ERRORS_MSG {
     NOT_RULES = 'Недостаточно прав для данной операции',
   }
   
+
+  export enum SUCCESS_MSG {
+    DEFAULT_SUCCESS_MSG_FOR_HTTP = "success"
+  }

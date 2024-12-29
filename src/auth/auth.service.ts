@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { isValidHash } from '../shared';
+import { isValidHash, SUCCESS_MSG } from '../shared';
 import { JwtService } from '@nestjs/jwt';
 import { SignInDto } from './dto/sign-in.dto';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/jwt.entity';
 import { Repository } from 'typeorm';
 import { OtpCode } from './entities/otp.entity';
+import * as ms from "ms";
 
 @Injectable()
 export class AuthService {
@@ -30,11 +31,12 @@ export class AuthService {
       await this.otpCodeRepository.remove(otpCodeForFoundedUser)
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const {otp, expiresAt} = this.generateOtpCode();
 
     const otpCode = this.otpCodeRepository.create({
-      user: user,
-      otp: otp,
+      user,
+      otp,
+      expiresAt
     });
 
     const savedOtpCode = await this.otpCodeRepository.save(otpCode);
@@ -42,7 +44,7 @@ export class AuthService {
     user.otp = savedOtpCode;
     await this.usersService.save(user); 
 
-    return savedOtpCode;
+    return {message: SUCCESS_MSG.DEFAULT_SUCCESS_MSG_FOR_HTTP};
   }
 
   async auth(user: SignInDto) {
@@ -145,5 +147,14 @@ export class AuthService {
       now.setHours(now.getHours() + parseInt(expiresIn.replace('h', ''), 10));
     }
     return now;
+  }
+
+  private generateOtpCode = () => {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const expiresDuration = process.env.OTP_LIFETIME || "3m";
+    const expiresAt = new Date(Date.now() + ms(expiresDuration));
+
+    return {otp, expiresAt}
   }
 }

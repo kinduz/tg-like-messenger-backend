@@ -1,8 +1,5 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LocalGuard } from './passport-strategies/local/local-guard';
-import { Request } from 'express';
-import { SignInDto } from './dto/sign-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
@@ -10,12 +7,6 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
   ) {}
-
-  // @UseGuards(LocalGuard)
-  // @Post('signin')
-  // async signIn(@Req() req: Request) {
-  //   return this.authService.auth(req.user as SignInDto);
-  // }
 
   @Post('start-login')
   async startLogin(@Body('phoneNumber') phoneNumber: string) {
