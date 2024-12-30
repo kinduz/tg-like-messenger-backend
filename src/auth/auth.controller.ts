@@ -8,7 +8,7 @@ export class AuthController {
     private readonly authService: AuthService,
   ) {}
 
-  @Post('start-login')
+  @Post('send-otp')
   async startLogin(@Body('phoneNumber') phoneNumber: string) {
     return this.authService.startLoginByPhoneNumber(phoneNumber)
   }
