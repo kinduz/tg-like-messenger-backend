@@ -10,9 +10,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/jwt.entity';
 import { OtpCode } from './entities/otp.entity';
+import { HttpModule } from '@nestjs/axios';
 
 @Module({
   imports: [
+    HttpModule,
     UsersModule,
     PassportModule,
     TypeOrmModule.forFeature([RefreshToken, OtpCode]),

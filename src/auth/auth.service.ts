@@ -1,6 +1,6 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, GoneException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
-import { isValidHash, SUCCESS_MSG } from '../shared';
+import { ERRORS_MSG, isValidHash } from '../shared';
 import { JwtService } from '@nestjs/jwt';
 import { SignInDto } from './dto/sign-in.dto';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +9,8 @@ import { RefreshToken } from './entities/jwt.entity';
 import { Repository } from 'typeorm';
 import { OtpCode } from './entities/otp.entity';
 import * as ms from "ms";
+import { HttpService } from '@nestjs/axios';
+import { lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +22,7 @@ export class AuthService {
     private refreshTokenRepository: Repository<RefreshToken>,
     @InjectRepository(OtpCode)
     private otpCodeRepository: Repository<OtpCode>,
+    private readonly httpService: HttpService
   ) {}
 
   async startLoginByPhoneNumber(phoneNumber: string) {
@@ -44,31 +47,34 @@ export class AuthService {
     user.otp = savedOtpCode;
     await this.usersService.save(user); 
 
-    return {message: SUCCESS_MSG.DEFAULT_SUCCESS_MSG_FOR_HTTP};
+    // const sendSms = await this.sendSMSToUser(otp, phoneNumber);
+
+    // return {sendSms};
+
+    return {message: 'ok'}
   }
 
-  async auth(user: SignInDto) {
-    const payload = { id: user.id, username: user.username };
+  async sendOtp(otp: string, phoneNumber: string) {
+    const user = await this.usersService.findOne({where: {phoneNumber}});
 
-    const access_token = this.jwtService.sign(payload, {
-      secret: this.configService.get("JWT_ACCESS_SECRET"),
-      expiresIn: this.configService.get("JWT_ACCESS_EXPIRATION"),
-    })
+    const otpCodeForFoundedUser = await this.otpCodeRepository.findOne({where: {user: {id: user.id}}});
 
-    const refresh_token = this.jwtService.sign(payload, {
-      secret: this.configService.get("JWT_REFRESH_SECRET"),
-      expiresIn: this.configService.get("JWT_REFRESH_EXPIRATION"),
-    })
-
-    const newRefreshToken = this.refreshTokenRepository.create({
-      token: refresh_token,
-      user: await this.usersService.findOne({where: {id: user.id}}),
-      expiresAt: this.getRefreshTokenExpiration(),
-    });
-
-    await this.refreshTokenRepository.save(newRefreshToken);
+    const isOtpNotExpired = new Date() < otpCodeForFoundedUser.expiresAt;
     
-    return { access_token, refresh_token };
+    if (!isOtpNotExpired) {
+      throw new GoneException(ERRORS_MSG.EXPIRED_ERROR)
+    }
+
+    if (otpCodeForFoundedUser.otp !== otp) {
+      throw new UnauthorizedException(ERRORS_MSG.WRONG_CODE);
+    }
+
+    await this.otpCodeRepository.remove(otpCodeForFoundedUser) 
+
+    user.isVerified = true;
+    const {createdAt, password, email, refreshTokens, ...userInfo} = await this.usersService.save(user);
+
+    return userInfo;
   }
 
   async validatePassword(username: string, password: string) {
@@ -156,5 +162,32 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + ms(expiresDuration));
 
     return {otp, expiresAt}
+  }
+
+  private sendSMSToUser = async (otp: string, desctinationPhoneNumber: string) => {
+    const {EXOLVE_API_KEY: api_key, EXOLVE_API_BASE_URL: baseUrl, EXOLVE_API_SENDER_PHONE_NUMBER: senderPhoneNumber} = process.env;
+
+    const url = `${baseUrl}/SendSMS`;
+
+    const text = `Ваш код подтверждения в Rocket Chat: ${otp}`; 
+
+    const body = {
+      number: senderPhoneNumber,
+      desstination: desctinationPhoneNumber,
+      text,
+    };
+    
+    const headers = {
+      Authorization: `Bearer ${api_key}`,
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const sendSms = this.httpService.post(url, body, {headers});
+      const response = await lastValueFrom(sendSms);
+      return response.data;
+    } catch {
+      throw new BadRequestException(ERRORS_MSG.SEND_SMS_ERROR)
+    }
   }
 }

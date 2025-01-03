@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsPhoneNumber, IsStrongPassword, IsUrl, Length, Min } from "class-validator";
+import { IsBoolean, IsEmail, IsOptional, IsPhoneNumber, IsStrongPassword, IsUrl, Length, Min } from "class-validator";
 import { ALLOWED_URL_PROTOCOLS, BaseEntityWithIdAndDates } from "src/shared";
 import { Column, Entity, JoinColumn, OneToMany, OneToOne } from "typeorm";
 import { MAX_USER_USERNAME_LENGTH, MIN_USER_PASSWORD_LENGTH, MIN_USER_USERNAME_LENGTH, NEW_USER_DEFAULT_ROLE } from "./constants/user-entity.constants";
@@ -41,4 +41,8 @@ export class User extends BaseEntityWithIdAndDates {
 
     @Column({default: NEW_USER_DEFAULT_ROLE})
     role: string;
+
+    @IsBoolean()
+    @Column({default: false})
+    isVerified: boolean;
 }
